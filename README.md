@@ -11,15 +11,19 @@ To use this plugin you need to have varnishstat installed which is installed by 
 Perl is also required for this plugin. If you don’t have Perl installed you can install in by running the command below
 
 sudo apt-get install perl
+
 or
 
 sudo yum install perl
+
 Now you can clone the repo above
 
 git clone https://github.com/thomasweaver/check_varnish.git
+
 Now you should have a file “check_varnish.pl” make sure that it has execute permissions:
 
 chmod u+x check_varnish.pl
+
 You now need to copy this file to your nagios plugins folder. You should consult your nagios config to find out where this is. Mine was ‘/usr/lib/nagios/plugin’
 
 mv check_varnish.pl /usr/lib/nagios/plugins/.
