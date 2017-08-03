@@ -28,8 +28,8 @@ print $options{'secret'};
 $overallResult;
 
 sub run_varnishstat_command {
-	#$result = qx(/usr/bin/varnishstat -1 -f cache_hit,cache_hitpass,cache_miss \\| awk '{ print $2; }');
-	$result = qx($options{'bin'} -1 -f $stats);
+	#$result = qx(/usr/bin/varnishstat -1 -f MAIN.cache_hit -f MAIN.cache_hitpass -f MAIN.cache_miss \\| awk '{ print $2; }');
+	$result = qx($options{'bin'} -1 $stats);
 	@ans = split (/\n/s, $result);
 
 	#print $result . " \n";
@@ -45,16 +45,16 @@ sub run_varnishstat_command {
 }
 
 sub get_hit_ratio {
-	$allhits = $results{'cache_hit'} + $results{'cache_hitpass'} + $results{'cache_miss'};
+	$allhits = $results{'MAIN.cache_hit'} + $results{'MAIN.cache_hitpass'} + $results{'MAIN.cache_miss'};
 
-	$cachehitratio = $results{'cache_hit'} / $allhits;
+	$cachehitratio = $results{'MAIN.cache_hit'} / $allhits;
 
 	return $cachehitratio;
 }
 
 sub check_is_running {
 	$result = qx(ps aux | grep "varnishd" | grep -v "grep" -c);
-	
+
 	$result =~ /(\d)/;
 
 	if(int($1) < 1) {
@@ -71,9 +71,9 @@ sub print_help {
 	print "
 check_varnish.pl - Monitor and report on varnish usage
 
-check_varnish.pl [-c|--cache] [-b|--bin <varnishstatbinary>] 
-	[-d|--backend <total|ratio>] [-s|--stats <varnish statfield>] 
-	[-t|--technique <lt|gt>] [-w|--warning <number>] 
+check_varnish.pl [-c|--cache] [-b|--bin <varnishstatbinary>]
+	[-d|--backend <total|ratio>] [-s|--stats <varnish statfield>]
+	[-t|--technique <lt|gt>] [-w|--warning <number>]
 	[-c|--critical <number>] [-h|--help]
 
 DESCRIPTION
@@ -87,20 +87,20 @@ If no counters are required the script will ensure the varnish binary is running
 OPTIONS
 
   -a --cache - this will make the script output cache_hit ratio perfdata
-  -b --bin <varnishstat> - to specify a different location of the default 
-                           varnishstat binary location. Default is 
+  -b --bin <varnishstat> - to specify a different location of the default
+                           varnishstat binary location. Default is
                            '/usr/bin/varnishstat'
-  -d --backend <all|success|unhealthy|busy|fail|reuse|toolate|recycle|retry> - 
-                        specify script to output backend data you can 
-                        output ratio, total or both	
+  -d --backend <all|conn|unhealthy|busy|fail|reuse|recycle|retry> -
+                        specify script to output backend data you can
+                        output ratio, total or both
   -h --help - output this message
-  -w --warning <number> - specify the warning threshold. Required for cache and 
+  -w --warning <number> - specify the warning threshold. Required for cache and
                           backend checks
   -c --critical <number> - specify the critical threshold. Required for cache and
                            backend checks
-  -s --stats <varnishstat field> - specify a comma seperated list of all the stats 
-                           you wish to check Critical and Warning can be specified 
-                           and all values will be compared to these values. 
+  -s --stats <varnishstat field> - specify a comma seperated list of all the stats
+                           you wish to check Critical and Warning can be specified
+                           and all values will be compared to these values.
   -t --technique <lt|gt> - when specifying stats you can also specify what technique
                            you wish to use to compare the values to the thresholds.
                            specify lt for less than and gt for greater than.
@@ -114,7 +114,7 @@ EXAMPLES
   ./check_varnish.pl -a -w 0.8 -c 0.6
 
   Check varnish Backends
-  ./check_varnish.pl -d all 
+  ./check_varnish.pl -d all
 
   Check varnish client requests and drops
   ./check_varnish.pl -s client_drop,client_req
@@ -175,7 +175,7 @@ if($options{'help'}) {
 
 if($options{'cache'}) {
 	check_warn_crit();
-	$stats = "cache_hit,cache_hitpass,cache_miss";
+	$stats = "-f MAIN.cache_hit -f MAIN.cache_hitpass -f MAIN.cache_miss";
 	run_varnishstat_command();
 	$hitratio = sprintf("%.2f", get_hit_ratio());
 	$overallresult= check_thresholds($hitratio, "lt");
@@ -185,7 +185,7 @@ if($options{'cache'}) {
 if($options{'backend'}) {
 	#print $results{'backend_conn'}."\n";
 	if($options{'backend'} eq "all") {
-		$stats = "backend_conn,backend_unhealthy,backend_busy,backend_fail,backend_resuse,backend_toolate,backend_recycle,backend_retry";
+		$stats = "-f MAIN.backend_conn -f MAIN.backend_unhealthy -f MAIN.backend_busy -f MAIN.backend_fail -f MAIN.backend_resuse -f MAIN.backend_toolate -f MAIN.backend_recycle -f MAIN.backend_retry";
 		run_varnishstat_command();
 		$result="";
 		$perfdata="";
@@ -197,17 +197,18 @@ if($options{'backend'}) {
 		exit_script($result . "| " . $perfdata);
 	}
 	else {
-		check_warn_crit();	
-		$stats = "backend_".$options{'backend'};
+		check_warn_crit();
+		$stats = "-f MAIN.backend_".$options{'backend'};
 		run_varnishstat_command();
 		$overallresult=check_thresholds($results{$stats});
 		exit_script($stats . "= " . $results{$stats} . " | " . $stats . "=" . $results{$stats} . ";" . $options{'warning'} . ";" . $options{'critical'} . ";;");
 	}
-	
+
 }
 
 if($options{'stats'}) {
 	$stats = $options{'stats'};
+	$stats = ' -f ' . join(' -f ', split(/\,/, $stats));
 	run_varnishstat_command();
 	$result="";
 	$perfdata="";
@@ -229,4 +230,4 @@ if($options{'stats'}) {
 check_is_running();
 exit(3);
 
-#print sprintf("%.2f", $cachehitratio) . "\n";
+# print sprintf("%.2f", $cachehitratio) . "\n";
